@@ -115,7 +115,9 @@ export class PiAgentService {
     }
 
     const unsubscribe = this.session.subscribe((event) => {
-      if (event.type === "message_update") {
+      if (event.type === "message_start" && event.message.role === "assistant") {
+        emit({ type: "assistant-start" });
+      } else if (event.type === "message_update") {
         if (event.assistantMessageEvent.type === "text_delta") emit({ type: "text", delta: event.assistantMessageEvent.delta });
         if (event.assistantMessageEvent.type === "thinking_delta") emit({ type: "thinking", delta: event.assistantMessageEvent.delta });
       } else if (event.type === "tool_execution_start") {

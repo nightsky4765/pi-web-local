@@ -14,6 +14,7 @@ export interface ChatRequest {
 
 export type StreamEvent =
   | { type: "start" }
+  | { type: "assistant-start" }
   | { type: "text"; delta: string }
   | { type: "thinking"; delta: string }
   | { type: "tool-start"; id: string; name: string; args: unknown }

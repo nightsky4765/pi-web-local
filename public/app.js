@@ -12,6 +12,8 @@ const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp", "image/gi
 let attachments = [];
 let availableModels = [];
 let currentModelKey = "";
+let pendingInterjection = null;
+let nextMessageTag = "";
 let busy = false;
 
 await initialize();
@@ -26,6 +28,7 @@ async function initialize() {
       scrollDown();
     }
     $("#connection").textContent = "已連線 · 僅限本機";
+    prompt.focus({ preventScroll: true });
   } catch (error) {
     $("#connection").textContent = "連線失敗";
     addMessage("assistant", `無法連接後端：${error.message}`);
@@ -115,19 +118,22 @@ function renderAttachments() {
 
 async function send() {
   const text = prompt.value.trim();
-  if (busy || (!text && !attachments.length)) return;
+  if (busy) return steerCurrentReply(text);
+  if (!text && !attachments.length) return;
   const files = [...attachments];
-  addMessage("user", text, files.length);
+  addMessage("user", text, files.length, nextMessageTag);
+  nextMessageTag = "";
   prompt.value = "";
   resizePrompt();
   clearAttachments();
   setBusy(true);
 
-  const assistant = addMessage("assistant", "");
-  const bubble = assistant.querySelector(".bubble");
+  let assistant = addMessage("assistant", "");
+  let bubble = assistant.querySelector(".bubble");
   let fullText = "";
   let fullThinking = "";
   let thinkingView;
+  let assistantTurns = 0;
   const tools = new Map();
 
   try {
@@ -141,7 +147,16 @@ async function send() {
     if (!response.body) throw new Error("瀏覽器不支援串流回應");
 
     for await (const event of readNdjson(response.body)) {
-      if (event.type === "text") {
+      if (event.type === "assistant-start") {
+        assistantTurns += 1;
+        if (assistantTurns > 1) {
+          assistant = addMessage("assistant", "");
+          bubble = assistant.querySelector(".bubble");
+          fullText = "";
+          fullThinking = "";
+          thinkingView = undefined;
+        }
+      } else if (event.type === "text") {
         fullText += event.delta;
         bubble.innerHTML = renderMarkdown(fullText);
       } else if (event.type === "thinking") {
@@ -173,7 +188,38 @@ async function send() {
   } finally {
     files.forEach((item) => URL.revokeObjectURL(item.url));
     setBusy(false);
-    refreshStatus();
+    const interjection = pendingInterjection;
+    pendingInterjection = null;
+    if (interjection) {
+      interjection.message.remove();
+      prompt.value = interjection.text;
+      nextMessageTag = "插嘴";
+      await send();
+    } else {
+      prompt.focus({ preventScroll: true });
+      refreshStatus();
+    }
+  }
+}
+
+async function steerCurrentReply(text) {
+  if (!text || pendingInterjection) return;
+  if (attachments.length) return notify("插嘴目前只支援文字；請先移除圖片或停止回覆後再傳送。");
+  prompt.value = "";
+  resizePrompt();
+  const message = addMessage("user", text, 0, "插嘴");
+  message.classList.add("interjection");
+  pendingInterjection = { text, message };
+  sendButton.disabled = true;
+  try {
+    await api("/api/abort", { method: "POST" });
+  } catch (error) {
+    pendingInterjection = null;
+    message.querySelector(".role").textContent = "你 · 插嘴失敗";
+    notify(error.message);
+  } finally {
+    sendButton.disabled = false;
+    prompt.focus({ preventScroll: true });
   }
 }
 
@@ -209,13 +255,14 @@ function closeThinkingMenu() {
   $("#thinking").setAttribute("aria-expanded", "false");
 }
 
-function addMessage(role, text, imageCount = 0) {
+function addMessage(role, text, imageCount = 0, tag = "") {
   $("#welcome")?.remove();
   const section = document.createElement("section");
   section.className = `message ${role}`;
+  if (tag === "插嘴") section.classList.add("interjection");
   const label = document.createElement("div");
   label.className = "role";
-  label.textContent = role === "user" ? "你" : role === "assistant" ? "Pi" : "工具";
+  label.textContent = `${role === "user" ? "你" : role === "assistant" ? "Pi" : "工具"}${tag ? ` · ${tag}` : ""}`;
   const bubble = document.createElement("div");
   bubble.className = "bubble";
   bubble.innerHTML = renderMarkdown(text || "");
@@ -342,7 +389,18 @@ function updateStatus(status) {
   $("#workspace").title = status.workspace;
 }
 async function refreshStatus() { try { updateStatus(await api("/api/status")); } catch {} }
-function setBusy(value) { busy = value; sendButton.hidden = value; stopButton.hidden = !value; prompt.disabled = value; $("#new-chat").disabled = value; $("#model").disabled = value; $("#thinking").disabled = value; if (value) closeThinkingMenu(); }
+function setBusy(value) {
+  busy = value;
+  dropZone.classList.toggle("busy", value);
+  stopButton.hidden = !value;
+  sendButton.innerHTML = value ? '插嘴 <span>↪</span>' : '送出 <span>↑</span>';
+  sendButton.title = value ? "插入指示，讓 Pi 在目前工具完成後調整方向" : "送出訊息";
+  prompt.placeholder = value ? "想改變方向？直接插嘴…" : "傳訊息給 Pi…（Enter 傳送，Shift+Enter 換行）";
+  $("#new-chat").disabled = value;
+  $("#model").disabled = value;
+  $("#thinking").disabled = value;
+  if (value) closeThinkingMenu();
+}
 function clearAttachments() { attachments = []; attachmentsView.replaceChildren(); }
 function resizePrompt() { prompt.style.height = "auto"; prompt.style.height = `${Math.min(prompt.scrollHeight, 180)}px`; }
 function scrollDown() { requestAnimationFrame(() => messages.scrollTop = messages.scrollHeight); }
