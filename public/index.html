@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#0a0d10">
+  <title>Pi Web</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div class="brand"><span class="logo">π</span><div><strong>Pi Web <em>LOCAL</em></strong><small><i class="status-dot"></i><span id="connection">連線中…</span></small></div></div>
+      <div class="controls">
+        <button id="model" class="model" title="選擇模型"><span>載入模型…</span><b>⌄</b></button>
+        <div class="thinking-control">
+          <span>思考</span>
+          <button id="thinking" type="button" aria-haspopup="listbox" aria-expanded="false"><span>off</span><b>⌄</b></button>
+          <div id="thinking-menu" class="thinking-menu" role="listbox" hidden>
+            <button type="button" data-level="off">關閉 <small>off</small></button>
+            <button type="button" data-level="minimal">極簡 <small>minimal</small></button>
+            <button type="button" data-level="low">低 <small>low</small></button>
+            <button type="button" data-level="medium">中 <small>medium</small></button>
+            <button type="button" data-level="high">高 <small>high</small></button>
+            <button type="button" data-level="xhigh">極高 <small>xhigh</small></button>
+            <button type="button" data-level="max">最大 <small>max</small></button>
+          </div>
+        </div>
+        <button id="new-chat" class="secondary">新對話</button>
+      </div>
+    </header>
+
+    <main id="messages" aria-live="polite">
+      <section id="welcome" class="welcome">
+        <div class="welcome-mark"><div class="orb orb-one"></div><div class="orb orb-two"></div><div class="logo large">π</div></div>
+        <p class="eyebrow">PRIVATE · LOCAL · CAPABLE</p>
+        <h1>今天想一起完成什麼？</h1>
+        <p class="welcome-copy">與 Pi 對話、分析圖片或探索程式碼。<br>憑證與工作階段只留在你的電腦。</p>
+        <div class="suggestions">
+          <button data-prompt="幫我快速了解目前專案的結構與用途。"><b>⌘</b><span>了解專案<small>快速整理結構與用途</small></span></button>
+          <button data-prompt="請檢查目前專案，找出可能的問題並提出改善建議。"><b>◇</b><span>檢查問題<small>找出風險與改善方向</small></span></button>
+          <button data-prompt="我會貼上一張圖片，請仔細分析圖片內容。"><b>▧</b><span>分析圖片<small>貼上截圖或設計稿</small></span></button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div id="drop-zone" class="composer">
+        <div id="attachments" class="attachments"></div>
+        <textarea id="prompt" rows="1" placeholder="傳訊息給 Pi…（Enter 傳送，Shift+Enter 換行）" aria-label="訊息"></textarea>
+        <div class="composer-actions">
+          <div>
+            <input id="file-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+            <button id="attach" class="icon secondary" title="附加圖片" aria-label="附加圖片">＋</button>
+            <span class="attach-label">附加圖片</span>
+            <span id="workspace" class="workspace"></span>
+          </div>
+          <button id="stop" class="danger" hidden>停止</button>
+          <button id="send" class="primary">送出 <span>↑</span></button>
+        </div>
+      </div>
+      <p class="hint">預設僅有唯讀工具。AI 可能犯錯，重要結果請自行確認。</p>
+    </footer>
+  </div>
+
+  <dialog id="model-dialog">
+    <form method="dialog" class="dialog-shell">
+      <div class="dialog-header">
+        <div><p class="eyebrow">MODEL CATALOG</p><h2>選擇模型</h2></div>
+        <button class="dialog-close" value="cancel" aria-label="關閉">×</button>
+      </div>
+      <input id="model-search" type="search" placeholder="搜尋模型或提供者…" autocomplete="off">
+      <div id="model-list" class="model-list"></div>
+      <p class="dialog-hint">只顯示目前已有有效認證的模型；選擇只套用於目前工作階段。</p>
+    </form>
+  </dialog>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
